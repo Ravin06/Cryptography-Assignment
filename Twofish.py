@@ -8,6 +8,7 @@
 
 import struct
 from math import ceil
+from tqdm import tqdm  # Import tqdm for progress bars
 
 
 
@@ -53,11 +54,10 @@ def pkcs7_unpad(data, block_size=16):
 
 
 
+
 # Key schedule
 def key_schedule(key):
     # Simplified key schedule for subkeys and S-boxes.
-    # Ensure key is 128 bit
-    assert len(key) == 16 
 
     # Split the key into 32-bit words
     k = bytes_to_words(key)
@@ -96,8 +96,6 @@ def feistel_function(right, s_boxes, round_key):
 # Twofish encryption
 def twofish_encrypt(plaintext, key):
     # Encrypt a 128-bit block using Twofish.
-    assert len(plaintext) == 16 # Plaintext must be 128 bits (16 bytes)
-    assert len(key) == 16 # Key must be 128 bits (16 bytes).
 
     # Generate subkeys and S-boxes
     subkeys, s_boxes = key_schedule(key)
@@ -134,11 +132,11 @@ def twofish_encrypt(plaintext, key):
 
 
 
+
+
 # Twofish decryption
 def twofish_decrypt(ciphertext, key):
     # Decrypt a 128-bit block using Twofish.
-    assert len(ciphertext) == 16 # Ciphertext must be 128 bits (16 bytes).
-    assert len(key) == 16 # Key must be 128 bits (16 bytes).
 
     # Generate subkeys and S-boxes
     subkeys, s_boxes = key_schedule(key)
@@ -175,7 +173,9 @@ def twofish_decrypt(ciphertext, key):
 
 
 
-# Twofish encryption for multiple blocks
+
+
+# Twofish encryption for multiple blocks with progress bar
 def twofish_encrypt_blocks(plaintext, key):
     # Encrypt data using Twofish in 16-byte blocks.
     # Pad plaintext to be a multiple of the block size
@@ -183,13 +183,16 @@ def twofish_encrypt_blocks(plaintext, key):
 
     # Encrypt each 16-byte block
     ciphertext = b""
-    for i in range(0, len(plaintext), 16):
+    num_blocks = len(plaintext) // 16
+    for i in tqdm(range(0, len(plaintext), 16), desc="Encrypting", total=num_blocks):
         block = plaintext[i:i+16]
         ciphertext += twofish_encrypt(block, key)
 
     return ciphertext
 
-# Twofish decryption for multiple blocks
+
+
+# Twofish decryption for multiple blocks with progress bar
 def twofish_decrypt_blocks(ciphertext, key):
     # Decrypt data using Twofish in 16-byte blocks.
     # Ensure ciphertext length is a multiple of the block size
@@ -198,7 +201,8 @@ def twofish_decrypt_blocks(ciphertext, key):
 
     # Decrypt each 16-byte block
     plaintext = b""
-    for i in range(0, len(ciphertext), 16):
+    num_blocks = len(ciphertext) // 16
+    for i in tqdm(range(0, len(ciphertext), 16), desc="Decrypting", total=num_blocks):
         block = ciphertext[i:i+16]
         plaintext += twofish_decrypt(block, key)
 
@@ -213,42 +217,16 @@ def twofish_decrypt_blocks(ciphertext, key):
 
 
 
-# Example usage within 16 bytes:
-key = b"sixteenbytekey16"  # 16-byte key
-plaintext = b"HelloTwofish1234"  # 16-byte plaintext
+# Example usage
+if __name__ == "__main__":
+    key = b"sixteenbytekey16"  # 16-byte key
+    plaintext = b"This is a test message for Twofish encryption!"  # Larger than 16 bytes
 
+    print("\nKey:", key.decode())
+    print("\nPlaintext:", plaintext.decode())
 
+    ciphertext = twofish_encrypt_blocks(plaintext, key)
+    print("\nCiphertext:", ciphertext.hex())
 
-print("\nKey:", key.decode())
-print("\nPlaintext:", plaintext.decode())
-
-ciphertext = twofish_encrypt(plaintext, key)
-print("\nCiphertext:", ciphertext.hex())
-
-decrypted = twofish_decrypt(ciphertext, key)
-print("\nDecrypted:", decrypted.decode())
-
-
-
-
-print('\n\n========================================\n\n')
-
-
-
-
-# Example usage over 16 bytes:
-key = b"my16bytekey12346"  # 16-byte key
-plaintext = b"This is a test message for Twofish encryption!"  # Larger than 16 bytes
-
-
-print("\nKey:", key.decode())
-print("\nPlaintext:", plaintext.decode())
-
-
-ciphertext = twofish_encrypt_blocks(plaintext, key)
-print("\nCiphertext:", ciphertext.hex())
-
-
-decrypted = twofish_decrypt_blocks(ciphertext, key)
-print("\nDecrypted:", decrypted.decode())
-
+    decrypted = twofish_decrypt_blocks(ciphertext, key)
+    print("\nDecrypted:", decrypted.decode())
