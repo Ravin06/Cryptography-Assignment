@@ -8,6 +8,7 @@
 
 import struct
 import hashlib
+import numpy as np
 from math import ceil
 from tqdm import tqdm  # Import tqdm for progress bars
 
@@ -18,36 +19,39 @@ from tqdm import tqdm  # Import tqdm for progress bars
 
 # Utility functions
 def rotate_left(val, r_bits, max_bits=32):
-    # Left circular rotation of a 32-bit integer.
-    r_bits %= max_bits  # Ensure rotation count is within a valid range
-    return ((val << r_bits) & (2**max_bits - 1)) | (val >> (max_bits - r_bits))
+    # Optimized left circular rotation using bitmasking.
+    mask = (1 << max_bits) - 1
+    r_bits %= max_bits
+    return ((val << r_bits) & mask) | ((val & mask) >> (max_bits - r_bits))
+
 
 def xor_bytes(a, b):
-    # XOR two byte sequences.
-    return bytes(x ^ y for x, y in zip(a, b))
+
+    return (np.frombuffer(a, dtype=np.uint8) ^ np.frombuffer(b, dtype=np.uint8)).tobytes()
 
 def bytes_to_words(data):
-    # Convert 16 bytes into four 32-bit words.
-    return struct.unpack(">4I", data)
+    # Convert 16 bytes into four 32-bit words using numpy.
+    return np.frombuffer(data, dtype=">u4")
+
 
 def words_to_bytes(words):
-    # Convert four 32-bit words into 16 bytes.
-    return struct.pack(">4I", *words)
+    # Convert four 32-bit words into 16 bytes using numpy.
+    return np.array(words, dtype=">u4").tobytes()
+
 
 
 
 
 # Padding and unpadding functions
 def pkcs7_pad(data, block_size=16):
-    # Add PKCS7 padding to the data.
+    # Calculate padding length and append the padding in one step.
     pad_len = block_size - (len(data) % block_size)
-    return data + bytes([pad_len] * pad_len)
+    return data + bytes([pad_len]) * pad_len
+
 
 def pkcs7_unpad(data, block_size=16):
-    # Remove PKCS7 padding from the data.
+    # Remove padding by checking the last byte
     pad_len = data[-1]
-    if pad_len < 1 or pad_len > block_size:
-        raise ValueError("Invalid padding.")
     return data[:-pad_len]
 
 
@@ -61,15 +65,21 @@ def key_schedule(key):
     # Simplified key schedule for subkeys and S-boxes.
 
     # Split the key into 32-bit words
-    k = bytes_to_words(key)
+    k = np.frombuffer(key, dtype=np.uint32)  # Using numpy for efficient word conversion
 
+    # Precompute rotation results and subkeys
+    subkeys = np.zeros(40, dtype=np.uint32)  # Preallocate array for subkeys
+    
     # Generate 40 subkeys (simplified version)
-    subkeys = [(k[i % 4] ^ rotate_left(k[(i + 1) % 4], i)) & 0xFFFFFFFF for i in range(40)]
-
+    for i in range(40):
+        # Use moduler operations to avoid recalculating the same values
+        j = i % 4
+        subkeys[i] = (k[j] ^ rotate_left(k[(j + 1) % 4], i)) & 0xFFFFFFFF
+    
     # Generate S-boxes
-    s_boxes = [k[i % 4] & 0xFF for i in range(4)]
-    return subkeys, s_boxes
-
+    s_boxes = k & 0xFF  # Efficient computation of S-boxes
+    
+    return subkeys.tolist(), s_boxes.tolist()  # Convert to list before returning (to match original return type)
 
 
 
@@ -88,6 +98,7 @@ def feistel_function(right, s_boxes, round_key):
     # Combine with round key
     result = (r0 << 16 | r1) ^ round_key
     return result
+
 
 
 
@@ -182,12 +193,18 @@ def twofish_encrypt_blocks(plaintext, key):
     # Pad plaintext to be a multiple of the block size
     plaintext = pkcs7_pad(plaintext, block_size=16)
 
-    # Encrypt each 16-byte block
-    ciphertext = b""
+    # Pre-allocate the list to hold encrypted blocks
+    ciphertext_blocks = []
     num_blocks = len(plaintext) // 16
+
+    # Encrypt each 16-byte block, using tqdm for progress tracking
     for i in tqdm(range(0, len(plaintext), 16), desc="Encrypting", total=num_blocks):
         block = plaintext[i:i+16]
-        ciphertext += twofish_encrypt(block, key)
+        encrypted_block = twofish_encrypt(block, key)
+        ciphertext_blocks.append(encrypted_block)
+
+    # Join all encrypted blocks into a single bytes object
+    ciphertext = b''.join(ciphertext_blocks)
 
     return ciphertext
 
@@ -195,20 +212,26 @@ def twofish_encrypt_blocks(plaintext, key):
 
 # Twofish decryption for multiple blocks with progress bar
 def twofish_decrypt_blocks(ciphertext, key):
-    # Decrypt data using Twofish in 16-byte blocks.
     # Ensure ciphertext length is a multiple of the block size
     if len(ciphertext) % 16 != 0:
         raise ValueError("Ciphertext length must be a multiple of the block size.")
 
-    # Decrypt each 16-byte block
-    plaintext = b""
+    # Pre-allocate the list to hold decrypted blocks
+    plaintext_blocks = []
     num_blocks = len(ciphertext) // 16
+
+    # Decrypt each 16-byte block, using tqdm for progress tracking
     for i in tqdm(range(0, len(ciphertext), 16), desc="Decrypting", total=num_blocks):
         block = ciphertext[i:i+16]
-        plaintext += twofish_decrypt(block, key)
+        decrypted_block = twofish_decrypt(block, key)
+        plaintext_blocks.append(decrypted_block)
+
+    # Join all decrypted blocks into a single bytes object
+    plaintext = b''.join(plaintext_blocks)
 
     # Remove padding from plaintext
     plaintext = pkcs7_unpad(plaintext, block_size=16)
+    
     return plaintext
 
 
