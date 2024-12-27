@@ -7,6 +7,7 @@
 
 
 import struct
+import hashlib
 from math import ceil
 from tqdm import tqdm  # Import tqdm for progress bars
 
@@ -219,10 +220,12 @@ def twofish_decrypt_blocks(ciphertext, key):
 
 # Example usage
 if __name__ == "__main__":
-    key = b"sixteenbytekey16"  # 16-byte key
-    plaintext = b"This is a test message for Twofish encryption!"  # Larger than 16 bytes
+    password = input('Enter key: ')  # 16-byte key derived using an md5 hash
+    plaintext = b"This is a test message for my Twofish encryption algorithmn implementation in Python."
 
-    print("\nKey:", key.decode())
+    key = hashlib.md5(password.encode()).digest()
+
+    print("\nKey:", password)
     print("\nPlaintext:", plaintext.decode())
 
     ciphertext = twofish_encrypt_blocks(plaintext, key)
@@ -230,3 +233,4 @@ if __name__ == "__main__":
 
     decrypted = twofish_decrypt_blocks(ciphertext, key)
     print("\nDecrypted:", decrypted.decode())
+
