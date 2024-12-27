@@ -244,7 +244,7 @@ def twofish_decrypt_blocks(ciphertext, key):
 # Example usage
 if __name__ == "__main__":
     password = input('Enter key: ')  # 16-byte key derived using an md5 hash
-    plaintext = b"This is a test message for my Twofish encryption algorithmn implementation in Python."
+    plaintext = b"This is a test message for my Twofish encryption algorithmn implementation in Python.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                "
 
     key = hashlib.md5(password.encode()).digest()
 
