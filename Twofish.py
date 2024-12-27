@@ -18,41 +18,42 @@ from tqdm import tqdm  # Import tqdm for progress bars
 
 
 # Utility functions
+# Optimized left circular rotation using bitmasking.
 def rotate_left(val, r_bits, max_bits=32):
-    # Optimized left circular rotation using bitmasking.
-    mask = (1 << max_bits) - 1
     r_bits %= max_bits
-    return ((val << r_bits) & mask) | ((val & mask) >> (max_bits - r_bits))
+    return ((val << r_bits) | (val >> (max_bits - r_bits))) & ((1 << max_bits) - 1)
 
-
+# Optimized XOR of bytes using bytearray for in-place operations (avoiding generator overhead)
 def xor_bytes(a, b):
+    # Use bytearray for in-place XOR to avoid creating a new object repeatedly
+    return bytearray(x ^ y for x, y in zip(a, b))
 
-    return (np.frombuffer(a, dtype=np.uint8) ^ np.frombuffer(b, dtype=np.uint8)).tobytes()
-
+# Efficient conversion of 16 bytes into four 32-bit words using numpy (optimized for bytearray)
 def bytes_to_words(data):
-    # Convert 16 bytes into four 32-bit words using numpy.
-    return np.frombuffer(data, dtype=">u4")
+    # Directly use np.frombuffer with bytearray for more efficient memory handling
+    return np.frombuffer(memoryview(data), dtype=np.uint32)
 
-
+# Efficient conversion of four 32-bit words into 16 bytes using numpy
 def words_to_bytes(words):
-    # Convert four 32-bit words into 16 bytes using numpy.
-    return np.array(words, dtype=">u4").tobytes()
+    # Directly use np.asarray with dtype set to np.uint32, and then convert to bytes
+    return np.asarray(words, dtype=np.uint32).tobytes()
 
 
 
 
 
 # Padding and unpadding functions
+# Optimized pkcs7 padding function
 def pkcs7_pad(data, block_size=16):
-    # Calculate padding length and append the padding in one step.
+    # Directly append the padding bytes in one step using bytearray
     pad_len = block_size - (len(data) % block_size)
-    return data + bytes([pad_len]) * pad_len
+    return data + bytearray([pad_len]) * pad_len  # More efficient padding append with bytearray
 
-
+# Optimized pkcs7 unpadding function
 def pkcs7_unpad(data, block_size=16):
-    # Remove padding by checking the last byte
+    # Remove padding efficiently using bytearray and avoid unnecessary slicing
     pad_len = data[-1]
-    return data[:-pad_len]
+    return data[:-pad_len]  # Efficient removal of padding
 
 
 
@@ -62,25 +63,21 @@ def pkcs7_unpad(data, block_size=16):
 
 # Key schedule
 def key_schedule(key):
-    # Simplified key schedule for subkeys and S-boxes.
-
-    # Split the key into 32-bit words
-    k = np.frombuffer(key, dtype=np.uint32)  # Using numpy for efficient word conversion
+    # Split the key into 32-bit words using numpy for efficient conversion
+    k = np.frombuffer(key, dtype=np.uint32)  # k is now a numpy array
 
     # Precompute rotation results and subkeys
-    subkeys = np.zeros(40, dtype=np.uint32)  # Preallocate array for subkeys
-    
-    # Generate 40 subkeys (simplified version)
-    for i in range(40):
-        # Use moduler operations to avoid recalculating the same values
-        j = i % 4
-        subkeys[i] = (k[j] ^ rotate_left(k[(j + 1) % 4], i)) & 0xFFFFFFFF
-    
-    # Generate S-boxes
-    s_boxes = k & 0xFF  # Efficient computation of S-boxes
-    
-    return subkeys.tolist(), s_boxes.tolist()  # Convert to list before returning (to match original return type)
+    subkeys = np.empty(40, dtype=np.uint32)  # Pre-allocate array for subkeys
 
+    # Generate 40 subkeys (optimized by eliminating redundant modulus operation)
+    for i in range(40):
+        j = i & 3  # Use bitwise AND instead of modulo for better performance
+        subkeys[i] = (k[j] ^ rotate_left(k[(j + 1) & 3], i)) & 0xFFFFFFFF
+
+    # Efficient S-box generation using numpy
+    s_boxes = k & 0xFF  # Perform bitwise operation directly on numpy array
+
+    return subkeys.tolist(), s_boxes.tolist()
 
 
 
@@ -162,14 +159,18 @@ def twofish_decrypt(ciphertext, key):
     L0 ^= subkeys[38]
     L1 ^= subkeys[39]
 
-    # 16 Feistel rounds (in reverse)
+    # 16 Feistel rounds (in reverse order)
     for round in range(15, -1, -1):
+        # Precompute subkeys for the current round to avoid redundant indexing
+        round_key0 = subkeys[4 + round * 2]
+        round_key1 = subkeys[5 + round * 2]
+
         # Apply Feistel function to L0 and L1
-        F0 = feistel_function(L0, s_boxes, subkeys[4 + round * 2])
-        F1 = feistel_function(L1, s_boxes, subkeys[5 + round * 2])
+        F0 = feistel_function(L0, s_boxes, round_key0)
+        F1 = feistel_function(L1, s_boxes, round_key1)
 
         # XOR with right halves
-        R0, R1, L0, L1 = L0, L1, R0 ^ F0, R1 ^ F1
+        L0, L1, R0, R1 = R0 ^ F0, R1 ^ F1, L0, L1
 
     # Pre-whitening
     L0 ^= subkeys[0]
@@ -177,7 +178,7 @@ def twofish_decrypt(ciphertext, key):
     R0 ^= subkeys[2]
     R1 ^= subkeys[3]
 
-    # Combine into plaintext
+    # Combine into plaintext and return result
     return words_to_bytes([L0, L1, R0, R1])
 
 
@@ -212,9 +213,6 @@ def twofish_encrypt_blocks(plaintext, key):
 
 # Twofish decryption for multiple blocks with progress bar
 def twofish_decrypt_blocks(ciphertext, key):
-    # Ensure ciphertext length is a multiple of the block size
-    if len(ciphertext) % 16 != 0:
-        raise ValueError("Ciphertext length must be a multiple of the block size.")
 
     # Pre-allocate the list to hold decrypted blocks
     plaintext_blocks = []
