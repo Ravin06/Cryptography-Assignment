@@ -23,10 +23,6 @@ def rotate_left(val, r_bits, max_bits=32):
     r_bits %= max_bits
     return ((val << r_bits) | (val >> (max_bits - r_bits))) & ((1 << max_bits) - 1)
 
-# Optimized XOR of bytes using bytearray for in-place operations (avoiding generator overhead)
-def xor_bytes(a, b):
-    # Use bytearray for in-place XOR to avoid creating a new object repeatedly
-    return bytearray(x ^ y for x, y in zip(a, b))
 
 # Efficient conversion of 16 bytes into four 32-bit words using numpy (optimized for bytearray)
 def bytes_to_words(data):
@@ -254,4 +250,3 @@ if __name__ == "__main__":
 
     decrypted = twofish_decrypt_blocks(ciphertext, key)
     print("\nDecrypted:", decrypted.decode())
-
