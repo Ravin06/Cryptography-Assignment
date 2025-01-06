@@ -327,7 +327,9 @@ class RC2():
                     if IV is not None:
                         for i in range(BLOCK_SIZE):
                             decode_buffer[block_count * BLOCK_SIZE + i] = block_result[i] ^ IV[i]
-
+                    else:
+                        for i in range(BLOCK_SIZE):
+                            decode_buffer[block_count * BLOCK_SIZE + i] = block_result[i]
                 else:
                     for i in range(BLOCK_SIZE):
                         decode_buffer[block_count * BLOCK_SIZE + i] = block_result[i] ^ previous_block[i]
