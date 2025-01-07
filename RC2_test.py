@@ -1,4 +1,4 @@
-import random, array
+import random, array, ast, base64
 
 ''' References:
 - http://www.crypto-it.net/eng/symmetric/rc2.html
@@ -306,9 +306,17 @@ class RC2():
 
             result += block_result
 
-        return result
+        # encode in base 64
+        enc_1 = [ x for x in result ]
+        enc_2 = base64.b64encode(str(enc_1).encode()).decode()
+
+        return enc_2
     
     def decrypt(self, cipher_text, mode, IV = None, padding = None):
+
+        # convert base 64 to bytearray
+        cipher_text = ast.literal_eval(base64.b64decode(cipher_text.encode()).decode())
+        cipher_text = bytearray(cipher_text)
 
         decode_size = len(cipher_text)
         decode_buffer = bytearray(decode_size)
@@ -323,13 +331,17 @@ class RC2():
             block_result = self.block_dec(block)
             
             if mode == MODE_CBC:
+
                 if block_count == 0:
+
                     if IV is not None:
                         for i in range(BLOCK_SIZE):
                             decode_buffer[block_count * BLOCK_SIZE + i] = block_result[i] ^ IV[i]
                     else:
                         for i in range(BLOCK_SIZE):
                             decode_buffer[block_count * BLOCK_SIZE + i] = block_result[i]
+                        
+
                 else:
                     for i in range(BLOCK_SIZE):
                         decode_buffer[block_count * BLOCK_SIZE + i] = block_result[i] ^ previous_block[i]
@@ -342,23 +354,20 @@ class RC2():
         if padding == PADDING_PKCS5:
             decode_buffer = decode_buffer[:-decode_buffer[decode_size - 1]]
 
-        return decode_buffer
+        return decode_buffer.decode('utf-8')
     
 def check():
 
-    a = bytearray('test', 'ascii')
+    a = bytearray('This is an example', 'ascii')
     b = RC2(a)
     message = bytearray('hell', 'utf-8')
-    enc_1 = [ x for x in b.encrypt(message,MODE_ECB) ]
-    dec_1 = [ z for z in b.decrypt(bytearray(enc_1), MODE_ECB)]
 
+    m = b.encrypt(message, MODE_ECB)
+    n = b.decrypt(m, MODE_ECB)
 
-    # enc_2 = b.encrypt(message, MODE_ECB)
-    # dec_2 = b.decrypt(enc_1,MODE_ECB)
-    
-    print(enc_1)
-    print(''.join( chr(k) for k in dec_1))
+    if bytearray(n,'utf-8') == bytearray(b'hell\x00\x00\x00\x00'):
+        pass
+    else:
+        print('An error has occurred.')
 
 check()
-
-
