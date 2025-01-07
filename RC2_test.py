@@ -348,10 +348,16 @@ def check():
 
     a = bytearray('test', 'ascii')
     b = RC2(a)
-    message = bytearray('Hello World', 'ascii')
-    enc_1 = b.encrypt(message,MODE_ECB)
-    dec_1 = b.decrypt(enc_1,MODE_ECB)
-    print()
+    message = bytearray('hell', 'utf-8')
+    enc_1 = [ x for x in b.encrypt(message,MODE_ECB) ]
+    dec_1 = [ z for z in b.decrypt(bytearray(enc_1), MODE_ECB)]
+
+
+    # enc_2 = b.encrypt(message, MODE_ECB)
+    # dec_2 = b.decrypt(enc_1,MODE_ECB)
+    
+    print(enc_1)
+    print(''.join( chr(k) for k in dec_1))
 
 check()
 
