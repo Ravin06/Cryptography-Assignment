@@ -1,3 +1,11 @@
+
+#========================================
+# base-16 implementation of Enigma in Python
+# Based off of enigma.py
+# Created by: wyn-cmd
+#========================================
+
+
 # Settings that can be changed
 rotors = ("I", "II", "III")
 reflector = "UKW-B"
