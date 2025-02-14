@@ -2,9 +2,17 @@
 
 ## Ciphers we will be covering in this repository
 - [RC2](RC2_test.py)
+  - A block cipher designed by Ron Rivest in 1987. It uses a variable key size (up to 128 bits) and operates on 64-bit blocks. Known for its use in early encryption applications like email security and file protection.
 - [Enigma](enigma.py)
+  - A mechanical cipher machine used by Nazi Germany during World War II. It employed rotors and plugboards to create complex, polyalphabetic substitutions, making it difficult to break without extensive cryptanalysis.
 - [Twofish](Twofish.py)
+  - A symmetric-key block cipher with a 128-bit block size and key sizes up to 256 bits. Developed as a finalist for the AES competition, it features a Feistel network structure and is known for its flexibility and efficiency. 
 - [TER-ECB (hybrid cipher)](main.py)
+  - 128-bit symmetric block cipher that combines aspects of Twofish, RC2, & Enigma
+  - Uses Twofish's Feistel Network
+  - RC2 bit mixing
+  - Base-16 or hexadecimal Enigma Cipher
+
 
 
 References
